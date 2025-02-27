@@ -1,0 +1,82 @@
+Step 1: Make the Script Executable
+Ensure the script you want to run on boot is executable.
+
+Navigate to the script's location:
+
+
+Copy code
+cd /path/to/your/script
+Make the script executable:
+
+
+Copy code
+chmod +x script_name.py
+Step 2: Create a systemd Service File
+Create a new service file in the /etc/systemd/system/ directory:
+
+
+Copy code
+sudo nano /etc/systemd/system/script-name.service
+Add the following content to the service file, replacing the paths and details as necessary:
+
+
+Copy code
+[Unit]
+Description=Service to run script_name.py on boot
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /path/to/your/script/script_name.py
+WorkingDirectory=/path/to/your/script
+Restart=always
+User=your-username
+Group=your-group
+
+[Install]
+WantedBy=multi-user.target
+
+
+ExecStart: Full path to the script with the appropriate interpreter (e.g., /usr/bin/python3 for Python scripts).
+WorkingDirectory: Path to the directory where the script resides.
+User: The username under which the script should run (usually your login user).
+Restart: Automatically restart the script if it crashes or stops.
+Step 3: Reload systemd
+After creating the service file, reload the systemd daemon to apply the changes.
+
+Copy code
+sudo systemctl daemon-reload
+Step 4: Enable the Service to Start on Boot
+Enable the service so that it starts automatically on boot:
+
+
+Copy code
+sudo systemctl enable script-name.service
+Start the service immediately:
+
+
+Copy code
+sudo systemctl start script-name.service
+Step 5: Check the Service Status
+You can check whether the service is running correctly using:
+
+
+Copy code
+sudo systemctl status script-name.service
+If the service fails, the error message shown will help you troubleshoot the issue.
+
+Step 6: Troubleshooting
+To view logs for the service, use the journalctl command:
+
+
+Copy code
+journalctl -u script-name.service
+To stop the service:
+
+
+Copy code
+sudo systemctl stop script-name.service
+To disable the service from starting on boot:
+
+
+Copy code
+sudo systemctl disable script-name.service

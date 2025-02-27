@@ -1,0 +1,34 @@
+version: '3.7'
+services:
+  motioneye:
+    image: ghcr.io/motioneye-project/motioneye:edge
+    container_name: motioneye
+    restart: always
+    ports:
+      - "8765:8765"
+      - "9081:9081"
+    volumes:
+      - ./config:/etc/motioneye
+      - ./media:/var/lib/motioneye
+    network_mode: host  # Enables host networking
+    environment:
+      - "TZ=Asia/Kolkata"  # Timezone set to India
+    devices:
+      - "/dev/video1:/dev/video1"  # USB camera
+      - "/dev/video0:/dev/video0"  # CSI camera
+
+  syncthing:
+    image: syncthing/syncthing
+    container_name: syncthing
+    ports:
+      - "8384:8384"       # Web interface
+      - "22000:22000"     # Default sync port
+      - "21027:21027/udp" # Local discovery
+    volumes:
+      - ./syncthing/config:/var/syncthing/config
+      - ./syncthing/data:/var/syncthing/data
+    restart: unless-stopped
+    privileged: true
+    mem_limit: 500m
+    
+    cpu_shares: 512 #relative weight (512/1024 =~ 50%)

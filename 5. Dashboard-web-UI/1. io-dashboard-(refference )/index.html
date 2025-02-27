@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm DAQ</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <h1>Smart Farm DAQ</h1>
+
+        <div class="card-container">
+            <div class="card" id="outer-sensor-card">
+                <h2>Outer Sensor Data</h2>
+                <div class="gauge" id="outer-sensor-gauge"></div>
+                <button onclick="exportData('outer_sensor')">Export Data</button>
+            </div>
+
+            <div class="card" id="inner-sensor-card">
+                <h2>Inner Sensor Data</h2>
+                <div class="gauge" id="inner-sensor-gauge"></div>
+                <button onclick="exportData('inner_sensor')">Export Data</button>
+            </div>
+
+            <div class="card" id="board-health-card">
+                <h2>Board Health Data</h2>
+                <div class="gauge" id="board-health-gauge"></div>
+                <button onclick="exportData('board_health')">Export Data</button>
+            </div>
+        </div>
+
+        <iframe src="http://localhost:9081" class="streaming-frame"></iframe>
+    </div>
+
+    <script src="scripts.js"></script>
+</body>
+
+</html>

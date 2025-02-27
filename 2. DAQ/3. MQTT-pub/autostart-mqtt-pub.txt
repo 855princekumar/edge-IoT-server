@@ -1,0 +1,13 @@
+[Unit]
+Description=Service to run mqtt-pub.py on boot
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/nodeL7/daq/mqtt-pub.py
+WorkingDirectory=/home/nodeL7/daq
+Restart=always
+User=nodeL7
+Group=nodeL7
+
+[Install]
+WantedBy=multi-user.target

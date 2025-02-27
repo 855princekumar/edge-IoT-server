@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="header">
+        <h1>Node Monitoring System</h1>
+    </div>
+    <div class="nav-bar">
+        <button id="addNodeBtn" aria-label="Add Node">+</button>
+        <button id="toggleModeBtn" aria-label="Toggle Dark/Light Mode">🌙</button>
+        <button id="infoBtn" aria-label="Information">i</button>
+    </div>
+    <div id="nodeContainer" class="node-container"></div>
+
+    <!-- Add Node Popup -->
+    <div id="addNodePopup" class="popup">
+        <div class="popup-content">
+            <button id="cancelAddNodeBtn" class="close-btn" aria-label="Cancel">✖</button>
+            <h2>Add Node</h2>
+            <form id="addNodeForm">
+                <label for="nodeIP">Node IP:</label>
+                <input type="text" id="nodeIP" name="nodeIP" placeholder="Enter Node IP" required>
+
+                <fieldset>
+                    <legend>Features of Node:</legend>
+                    <label>
+                        <input type="checkbox" name="feature" value="Sensor">
+                        Sensor
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="Camera">
+                        Camera
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="Battery Backup">
+                        Battery Backup
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="AC Power">
+                        AC Power
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="Solar Powered">
+                        Solar Powered
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="Active Cooling">
+                        Active Cooling
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="Bluetooth">
+                        Bluetooth
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="WiFi">
+                        WiFi
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="UART Terminal Access">
+                        UART Terminal Access
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="USB">
+                        USB
+                    </label>
+                    <label>
+                        <input type="checkbox" name="feature" value="LAN">
+                        LAN
+                    </label>
+                </fieldset>
+
+                <button type="button" id="submitNodeBtn">Add Node</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Info Popup -->
+    <div id="infoPopup" class="popup">
+        <div class="popup-content">
+            <button id="closeInfoBtn" class="close-btn" aria-label="Close">✖</button>
+            <h2>Node Information</h2>
+            <div id="infoContent"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

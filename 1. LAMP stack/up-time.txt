@@ -1,0 +1,1 @@
+make sure to check this entery in crontab "*/15 * * * * uprecords >> /home/nodeL2/uptime_log.txt 2>&1"

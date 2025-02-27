@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Monitoring</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #1f1f1f;
+            border-bottom: 1px solid #333;
+        }
+
+        h1 {
+            margin: 0;
+        }
+
+        button {
+            background-color: #333;
+            color: #ffffff;
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #444;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .grid-item {
+            background-color: #1f1f1f;
+            padding: 0.5rem;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .grid-item iframe {
+            width: 100%;
+            height: 100%;
+            aspect-ratio: 32 / 18;
+        }
+
+        .light-mode {
+            background-color: #f0f0f0;
+            color: #000000;
+        }
+
+        .light-mode header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .light-mode button {
+            background-color: #ddd;
+            color: #000000;
+        }
+
+        .light-mode .grid-item {
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Lab Occupancy</h1>
+        <button id="darkModeToggle">Toggle Dark Mode</button>
+    </header>
+
+    <section class="grid-container">
+        <div class="grid-item">
+            <iframe src="http://labcam1.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="grid-item">
+            <iframe src="http://labcam2.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="grid-item">
+            <iframe src="http://labcam3.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </section>
+    <section class="grid-container">
+        <div class="grid-item">
+            <iframe src="http://labcam5.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+
+        <div class="grid-item">
+            <iframe src="http://labcam6.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="grid-item">
+            <iframe src="http://labcam7.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </section>
+    <section class="grid-container">
+        <div class="grid-item">
+            <iframe src="http://labcam4.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="grid-item">
+            <iframe src="http://labcam8.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+        <div class="grid-item">
+            <iframe src="http://labcam9.local:9081" frameborder="0" allowfullscreen></iframe>
+        </div>
+    </section>
+
+
+
+
+    <script>
+        document.getElementById('darkModeToggle').addEventListener('click', function () {
+            document.body.classList.toggle('light-mode');
+        });
+    </script>
+</body>
+
+</html>
