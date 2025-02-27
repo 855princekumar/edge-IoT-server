@@ -86,10 +86,6 @@ Contributions are welcome! If you'd like to contribute to this project:
 
 Ensure that your code adheres to the project's coding standards and includes appropriate tests.
 
-## License 📄
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
-
 ---
 
 By providing a lightweight and structured four-layer edge server solution, `edge-IoT-server` aims to simplify the deployment and management of IoT devices in various environments. 🚀
