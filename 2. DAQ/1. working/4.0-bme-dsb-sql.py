@@ -18,10 +18,18 @@ db_config = {
 }
 
 def install_dependencies():
-    """Install missing dependencies."""
+    """Install missing dependencies if not already present."""
     try:
-        subprocess.check_call(['sudo', 'apt-get', 'install', '-y', 'vnstat', 'python3-adafruit-circuitpython-bme280'])
-        print("Dependencies installed successfully.")
+        # Check if vnstat is already installed
+        vnstat_installed = subprocess.call(['which', 'vnstat'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0
+
+        if not vnstat_installed:
+            print("vnstat not found. Installing dependencies...")
+            subprocess.check_call(['sudo', 'apt-get', 'update'])
+            subprocess.check_call(['sudo', 'apt-get', 'install', '-y', 'vnstat', 'python3-adafruit-circuitpython-bme280'])
+            print("Dependencies installed successfully.")
+        else:
+            print("vnstat already installed. Skipping dependency installation.")
     except subprocess.CalledProcessError as e:
         print(f"Error installing dependencies: {e}")
 
@@ -34,7 +42,7 @@ def check_and_create_table(cursor):
         temperature REAL
     )
     '''
-    
+
     create_board_health_table = '''
     CREATE TABLE IF NOT EXISTS board_health (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -53,7 +61,7 @@ def check_and_create_table(cursor):
         uptime TEXT
     )
     '''
-    
+
     create_inner_sensor_table = '''
     CREATE TABLE IF NOT EXISTS inner_sensor (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -63,7 +71,7 @@ def check_and_create_table(cursor):
         pressure REAL
     )
     '''
-    
+
     try:
         cursor.execute(create_outer_sensor_table)
         cursor.execute(create_board_health_table)
@@ -79,7 +87,7 @@ def get_system_metrics():
         # Fetch system metrics using vcgencmd
         metrics["cpu_temp"] = float(subprocess.check_output("vcgencmd measure_temp", shell=True).decode().strip().split('=')[1].split("'")[0])
         metrics["ram_usage"] = float(subprocess.check_output("free | grep Mem | awk '{print $3/$2 * 100.0}'", shell=True).decode().strip())
-        
+
         # Use top command to get CPU usage, calculating (100 - idle percentage)
         cpu_usage_str = subprocess.check_output("top -bn1 | grep 'Cpu(s)'", shell=True).decode().strip()
         cpu_usage_values = cpu_usage_str.split(',')
@@ -98,7 +106,7 @@ def get_system_metrics():
                 # Extract numeric values from vnstat output
                 net_up = ''.join(filter(str.isdigit, net_up_str.split()[0])) if net_up_str.split() else None
                 net_down = ''.join(filter(str.isdigit, net_down_str.split()[0])) if net_down_str.split() else None
-                
+
                 metrics["net_up"] = int(net_up) if net_up else None
                 metrics["net_down"] = int(net_down) if net_down else None
             else:
@@ -117,14 +125,14 @@ def get_system_metrics():
         metrics["arm_memory"] = float(subprocess.check_output("vcgencmd get_mem arm", shell=True).decode().strip().split('=')[1].split('M')[0])
         metrics["gpu_memory"] = float(subprocess.check_output("vcgencmd get_mem gpu", shell=True).decode().strip().split('=')[1].split('M')[0])
         metrics["throttled_state"] = subprocess.check_output("vcgencmd get_throttled", shell=True).decode().strip()
-        
+
         # Fetch uptime
         uptime_str = subprocess.check_output("uptime -p", shell=True).decode().strip()
         metrics["uptime"] = uptime_str
 
     except subprocess.CalledProcessError as e:
         print(f"Error retrieving system metrics: {e}")
-    
+
     return metrics
 
 def setup_bme280():
@@ -182,7 +190,7 @@ def main():
                 INSERT INTO outer_sensor (temperature) VALUES (%s)
                 '''
                 cursor.execute(insert_query, (temperature_c,))
-                
+
                 insert_inner_query = '''
                 INSERT INTO inner_sensor (temperature, humidity, pressure) VALUES (%s, %s, %s)
                 '''
