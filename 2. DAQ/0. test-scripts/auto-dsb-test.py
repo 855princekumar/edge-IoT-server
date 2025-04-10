@@ -22,13 +22,17 @@ def verify_kernel_modules():
         print("Kernel modules loaded successfully.")
 
 def verify_config_txt():
-    """Ensure One-Wire interface is enabled in /boot/firmware/config.txt."""
-    print("Verifying /boot/firmware/config.txt configuration...")
+    """Ensure One-Wire interface is enabled in config.txt."""
+    print("Verifying config.txt configuration...")
     config_file = "/boot/firmware/config.txt"
-    
+    if not os.path.exists(config_file):
+        config_file = "/boot/config.txt"
+
+    print(f"Using configuration file: {config_file}")
+
     with open(config_file, 'r') as file:
         config = file.read()
-        
+
     if "dtoverlay=w1-gpio,gpiopin=4" in config:
         print("One-Wire already enabled on GPIO4.")
     else:
@@ -77,7 +81,7 @@ def test_temperature_sensor(sensor_id):
     print("Testing temperature sensor...")
     device_folder = f"/sys/bus/w1/devices/{sensor_id}"
     device_file = device_folder + "/w1_slave"
-    
+
     try:
         while True:
             temperature_c = read_temp(device_file)
@@ -92,11 +96,11 @@ def test_temperature_sensor(sensor_id):
 def main():
     verify_kernel_modules()
     verify_config_txt()
-    
+
     sensor_id = check_sensor_connection()
     if sensor_id:
         test_temperature_sensor(sensor_id)
-    
+
     reboot_confirm = input("Do you want to reboot the system now? (y/n): ")
     if reboot_confirm.lower() == 'y':
         print("Rebooting now...")
