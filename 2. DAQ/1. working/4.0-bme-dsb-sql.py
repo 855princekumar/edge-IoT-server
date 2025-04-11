@@ -135,6 +135,7 @@ def main():
     install_dependencies()
     os.system('modprobe w1-gpio')
     os.system('modprobe w1-therm')
+
     device_file = None
     try:
         base_dir = '/sys/bus/w1/devices/'
@@ -142,15 +143,24 @@ def main():
         device_file = device_folder + '/w1_slave'
     except IndexError:
         print("DS18B20 sensor not found at startup.")
+
+    bme280_init_error = None
     try:
         bme280 = setup_bme280()
     except Exception as e:
-        print(f"Error initializing BME280 sensor: {e}")
         bme280 = None
+        bme280_init_error = str(e)
+        print(f"Error initializing BME280 sensor: {bme280_init_error}")
+
     try:
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
         check_and_create_table(cursor)
+
+        if bme280_init_error:
+            log_error(cursor, "BME280 INIT", bme280_init_error)
+            connection.commit()
+
         while True:
             temperature_c = None
             bme_temperature = None
