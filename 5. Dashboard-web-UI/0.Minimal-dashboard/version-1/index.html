@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Node-Monitoring-Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-yHhQn3qKwkp1bwM2HxzI6NzY5zTe+0oAq4vHe5N+3KZ0g5wSp2v5+R1VAn+VpL8TGvlKuH4vlYmuOSISB9pDzg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    .gauge {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: conic-gradient(
+        #4ade80 calc(var(--percent, 0) * 1%),
+        #e5e7eb 0deg
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+    }
+    .gauge-fill {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      width: 80%;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-screen-xl mx-auto px-4 py-6">
+    <div class="text-center mb-6">
+      <h1 class="text-3xl font-bold">Node-Monitoring-Dashboard</h1>
+      <p id="countdown" class="text-gray-500">Fetching latest data in 5s...</p>
+      <p id="timestamp" class="text-sm text-gray-400"></p>
+      <p>Location:</>
+      <p>ID: NodeLx</p>
+    </div>
+
+    <!-- Ambient Temperature Column -->
+    <h2 class="text-xl font-bold mb-2">Ambient Condition</h2>
+    <div class="grid grid-cols-1 md:grid-cols-1 gap-6">
+      <div class="bg-white rounded-2xl p-4 shadow text-center">
+        <div class="gauge" style="--percent:0" id="gauge_ambient_temp">
+          <div id="ambient_temp" class="gauge-fill">-- °C</div>
+        </div>
+        <p class="mt-2 font-semibold">Ambient Temperature</p>
+      </div>
+    </div>
+
+    <!-- Inside Sensor Data Row -->
+    <h2 class="text-xl font-bold mt-10 mb-2">Inside Box Conditions</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
+      <div class="bg-white rounded-2xl p-4 shadow text-center">
+        <div class="gauge" style="--percent:0" id="gauge_inside_temp">
+          <div id="inside_temp" class="gauge-fill">-- °C</div>
+        </div>
+        <p class="mt-2">Temperature</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow text-center">
+        <div class="gauge" style="--percent:0" id="gauge_humidity">
+          <div id="humidity" class="gauge-fill">-- %</div>
+        </div>
+        <p class="mt-2">Humidity</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow text-center">
+        <div class="gauge" style="--percent:0" id="gauge_pressure">
+          <div id="pressure" class="gauge-fill">-- hPa</div>
+        </div>
+        <p class="mt-2">Pressure</p>
+      </div>
+    </div>
+
+<!-- Board Health Cluster -->
+<h2 class="text-xl font-bold mt-10 mb-4">System Board Health</h2>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+  <div class="bg-white rounded-2xl p-4 shadow text-center">
+    <div class="gauge" style="--percent:0" id="gauge_cpu_temp">
+      <div id="cpu_temp" class="gauge-fill">-- °C</div>
+    </div>
+    <p class="mt-2">CPU Temperature</p>
+  </div>
+  <div class="bg-white rounded-2xl p-4 shadow text-center">
+    <div class="gauge" style="--percent:0" id="gauge_cpu_usage">
+      <div id="cpu_usage" class="gauge-fill">-- %</div>
+    </div>
+    <p class="mt-2">CPU Usage</p>
+  </div>
+  <div class="bg-white rounded-2xl p-4 shadow text-center">
+    <div class="gauge" style="--percent:0" id="gauge_ram_usage">
+      <div id="ram_usage" class="gauge-fill">-- %</div>
+    </div>
+    <p class="mt-2">RAM Usage</p>
+  </div>
+  <div class="bg-white rounded-2xl p-4 shadow text-center">
+    <div class="gauge" style="--percent:0" id="gauge_disk_usage">
+      <div id="disk_usage" class="gauge-fill">-- %</div>
+    </div>
+    <p class="mt-2">Disk Usage</p>
+  </div>
+</div>
+
+
+    <!-- Network Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div class="bg-white rounded-2xl p-4 shadow flex items-center justify-center gap-4">
+        <i class="fa-solid fa-arrow-up text-green-500 text-2xl"></i>
+        <div class="text-center">
+          <p class="text-lg font-semibold">Net Upload</p>
+          <p id="net_up" class="text-xl font-bold">--</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow flex items-center justify-center gap-4">
+        <i class="fa-solid fa-arrow-down text-blue-500 text-2xl"></i>
+        <div class="text-center">
+          <p class="text-lg font-semibold">Net Download</p>
+          <p id="net_down" class="text-xl font-bold">--</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Additional Info -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+      <div class="bg-white rounded-2xl p-4 shadow">
+        <h2 class="text-lg font-semibold mb-2">Core Voltage & Uptime</h2>
+        <p><strong>Voltage:</strong> <span id="core_volts">--</span> V</p>
+        <p><strong>Throttle State:</strong> <span id="throttle_state">--</span></p>
+        <p><strong>Uptime:</strong> <span id="uptime">--</span></p>
+        <p class="text-sm text-red-500 mt-2"><strong>Last Error:</strong> <span id="latest_error">--</span></p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow">
+        <h2 class="text-lg font-semibold mb-2">Camera Stream</h2>
+        <iframe id="cam_stream" class="w-full h-60 rounded-xl border" src="http://10.1.59.244:9081" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let countdown = 5;
+    function updateCountdown() {
+      countdown--;
+      document.getElementById("countdown").textContent = `Fetching latest data in ${countdown}s...`;
+      if (countdown === 0) {
+        fetchData();
+        countdown = 5;
+      }
+    }
+    setInterval(updateCountdown, 1000);
+
+    async function fetchData() {
+      const res = await fetch("data.php");
+      const data = await res.json();
+      if (!data) return;
+
+      document.getElementById("timestamp").textContent = `Last updated: ${new Date().toLocaleString()}`;
+
+      updateGauge("ambient_temp", data.outer_temp, 60);
+      updateGauge("inside_temp", data.inside_temp, 60);
+      updateGauge("humidity", data.humidity, 100);
+      updateGauge("pressure", data.pressure, 1100);
+      updateGauge("cpu_temp", data.cpu_temp, 90);
+      updateGauge("cpu_usage", data.cpu_usage, 100);
+      updateGauge("ram_usage", data.ram_usage, 100);
+      updateGauge("disk_usage", data.disk_usage, 100);
+
+      const formatBytes = (bytes) => {
+        const kb = 1024;
+        const mb = kb * 1024;
+        if (bytes >= mb) return (bytes / mb).toFixed(2) + " MB";
+        else if (bytes >= kb) return (bytes / kb).toFixed(2) + " KB";
+        else return bytes + " B";
+      };
+
+      document.getElementById("net_up").textContent = formatBytes(data.net_up);
+      document.getElementById("net_down").textContent = formatBytes(data.net_down);
+
+      document.getElementById("core_volts").textContent = `${data.core_volts}`;
+      document.getElementById("throttle_state").textContent = `${data.throttled_state}`;
+      document.getElementById("uptime").textContent = `${data.uptime}`;
+      document.getElementById("latest_error").textContent = data.latest_error;
+    }
+
+    function updateGauge(id, value, max) {
+      const gauge = document.getElementById(`gauge_${id}`);
+      const el = document.getElementById(id);
+      let num = parseFloat(value);
+      if (isNaN(num)) num = 0;
+      gauge.style.setProperty('--percent', (num / max) * 100);
+      el.textContent = `${num.toFixed(2)} ${el.textContent.replace(/[0-9.\s]+/, '')}`;
+    }
+
+    fetchData();
+  </script>
+</body>
+</html>
