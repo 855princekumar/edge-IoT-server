@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            background-color: #111827;
+        }
+
+        body.light {
+            background-color: white;
+        }
+
+        .dashboard-card {
+            background: #1f2937;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #374151;
+        }
+
+        .light .dashboard-card {
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+        }
+
+        /* Navbar styles */
+        .navbar {
+            background-color: #1f2937;
+            transition: all 0.3s ease;
+        }
+
+        .light .navbar {
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-text {
+            color: #f3f4f6;
+        }
+
+        .light .nav-text {
+            color: #111827;
+        }
+
+        .nav-badge {
+            background-color: #374151;
+            color: #f3f4f6;
+        }
+
+        .light .nav-badge {
+            background-color: #e5e7eb;
+            color: #111827;
+        }
+
+        .metric-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 600;
+            margin: 8px 0;
+            color: #f3f4f6;
+        }
+
+        .light .metric-value {
+            color: #111827;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+
+        .light .metric-label {
+            color: #4b5563;
+        }
+
+        .chart-container {
+            height: 280px;
+            width: 100%;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .status-good {
+            background-color: var(--success);
+        }
+
+        .status-warning {
+            background-color: var(--warning);
+        }
+
+        .status-critical {
+            background-color: var(--danger);
+        }
+
+        .stream-container {
+            width: 100%;
+            height: 400px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            background-color: #374151;
+            overflow: hidden;
+        }
+
+        .light .progress-bar {
+            background-color: #e5e7eb;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .data-refresh {
+            background-color: rgba(99, 102, 241, 0.2);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            color: #f3f4f6;
+        }
+
+        .light .data-refresh {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: #111827;
+        }
+
+        .data-refresh i {
+            margin-right: 6px;
+        }
+
+        .gauge-container {
+            height: 180px;
+            width: 100%;
+            position: relative;
+        }
+
+        /* Card content text styles - dynamic based on theme */
+        .card-text {
+            color: #f3f4f6;
+        }
+
+        .light .card-text {
+            color: #111827;
+        }
+
+        /* Alert table styles */
+        .alert-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .alert-table thead th {
+            text-align: left;
+            padding: 12px 16px;
+            background-color: #1f2937;
+            font-weight: 600;
+            border-bottom: 1px solid #374151;
+        }
+
+        .light .alert-table thead th {
+            background-color: #f9fafb;
+            border-bottom-color: #e5e7eb;
+        }
+
+        .alert-table tbody td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #374151;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
+        }
+
+        .light .alert-table tbody td {
+            border-bottom-color: #e5e7eb;
+        }
+
+        .alert-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-info {
+            background-color: #1e3a8a;
+            color: #bfdbfe;
+        }
+
+        .light .badge-info {
+            background-color: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .badge-warning {
+            background-color: #78350f;
+            color: #fcd34d;
+        }
+
+        .light .badge-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-critical {
+            background-color: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .light .badge-critical {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+    </style>
+</head>
+
+<body class="dark">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="navbar shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-indigo-900 flex items-center justify-center">
+                                <i class="fas fa-server text-indigo-300"></i>
+                            </div>
+                            <h1 class="ml-3 text-xl font-bold nav-text">Node Monitoring Dashboard</h1>
+                        </div>
+                        <div class="hidden md:flex items-center space-x-1 nav-badge rounded-full px-3 py-1">
+                            <span class="status-indicator status-good"></span>
+                            <span class="text-sm font-medium">Operational</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="data-refresh">
+                            <i class="fas fa-sync-alt"></i>
+                            <span id="countdown" class="nav-text">Refreshing in 5s</span>
+                        </div>
+                        <div class="text-sm nav-text">
+                            <span id="timestamp">Last updated: --</span>
+                        </div>
+                        <button onclick="toggleDarkMode()"
+                            class="p-2 rounded-full bg-gray-700 text-gray-300 hover:bg-gray-600 transition">
+                            <i id="theme-icon" class="fas fa-sun"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Video Stream -->
+                <div class="lg:col-span-2 dashboard-card p-0 overflow-hidden">
+                    <div class="p-4 border-b border-gray-600 flex justify-between items-center">
+                        <h2 class="font-semibold text-lg card-text">Live Camera Feed</h2>
+                        <div class="flex space-x-2">
+                            <button onclick="openFullscreenStream()"
+                                class="p-2 rounded-md bg-gray-700 text-gray-300 hover:bg-gray-600 transition">
+                                <i class="fas fa-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <iframe class="stream-container" src="http://10.1.40.4:9081" id="stream-iframe"></iframe>
+                    </div>
+                </div>
+
+                <!-- Environment Metrics -->
+                <div class="dashboard-card p-6">
+                    <h2 class="font-semibold text-lg card-text mb-4">Environment Metrics</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="metric-card bg-blue-900/20">
+                            <i class="fas fa-temperature-low text-blue-300 text-2xl"></i>
+                            <div class="metric-value text-blue-300" id="ambient_value">--°C</div>
+                            <div class="metric-label card-text">Ambient Temp</div>
+                        </div>
+                        <div class="metric-card bg-red-900/20">
+                            <i class="fas fa-thermometer-half text-red-300 text-2xl"></i>
+                            <div class="metric-value text-red-300" id="inside_temp">--°C</div>
+                            <div class="metric-label card-text">Internal Temp</div>
+                        </div>
+                        <div class="metric-card bg-green-900/20">
+                            <i class="fas fa-tint text-green-300 text-2xl"></i>
+                            <div class="metric-value text-green-300" id="inside_humidity">--%</div>
+                            <div class="metric-label card-text">Humidity</div>
+                        </div>
+                        <div class="metric-card bg-purple-900/20">
+                            <i class="fas fa-tachometer-alt text-purple-300 text-2xl"></i>
+                            <div class="metric-value text-purple-300" id="inside_pressure">--hPa</div>
+                            <div class="metric-label card-text">Pressure</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <!-- System Metrics -->
+                <div class="dashboard-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-semibold text-lg card-text">System Health</h2>
+                        <span class="status-indicator status-good" id="system-status"></span>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="card-text">Core Voltage</span>
+                                <span class="font-medium card-text" id="voltage">--V</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill bg-yellow-500" style="width: 80%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="card-text">Uptime</span>
+                                <span class="font-medium card-text" id="uptime">--:--:--</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill bg-indigo-500" style="width: 95%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Metrics -->
+                <div class="dashboard-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-semibold text-lg card-text">Network</h2>
+                        <span class="status-indicator status-good"></span>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center">
+                                    <i class="fas fa-arrow-up text-green-500 mr-2"></i>
+                                    <span class="text-sm card-text">Upload</span>
+                                </div>
+                                <span class="font-medium card-text" id="net_up">--kbps</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill bg-green-500" style="width: 65%"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center">
+                                    <i class="fas fa-arrow-down text-blue-500 mr-2"></i>
+                                    <span class="text-sm card-text">Download</span>
+                                </div>
+                                <span class="font-medium card-text" id="net_down">--kbps</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill bg-blue-500" style="width: 40%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CPU Gauge -->
+                <div class="dashboard-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-semibold text-lg card-text">CPU Status</h2>
+                        <span class="status-indicator" id="cpu-status"></span>
+                    </div>
+                    <div class="gauge-container" id="cpu_gauge"></div>
+                </div>
+
+                <!-- Memory Gauge -->
+                <div class="dashboard-card p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="font-semibold text-lg card-text">Memory Status</h2>
+                        <span class="status-indicator" id="memory-status"></span>
+                    </div>
+                    <div class="gauge-container" id="memory_gauge"></div>
+                </div>
+            </div>
+
+            <!-- Resource Charts -->
+            <div class="dashboard-card p-6 mb-6">
+                <h2 class="font-semibold text-lg card-text mb-4">Resource Usage</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <div class="chart-container" id="resources_pie"></div>
+                    </div>
+                    <div>
+                        <div class="chart-container" id="resources_line"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Alerts -->
+            <div class="dashboard-card p-6">
+                <h2 class="font-semibold text-lg card-text mb-4">System Alerts</h2>
+                <div class="overflow-hidden rounded-lg">
+                    <table class="alert-table">
+                        <thead>
+                            <tr>
+                                <th class="card-text">Time</th>
+                                <th class="card-text">Severity</th>
+                                <th class="card-text">Message</th>
+                                <th class="card-text">Node</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alerts-container">
+                            <tr>
+                                <td colspan="4" class="text-center py-4 card-text">Waiting for initial data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize charts
+        const resourcesPie = echarts.init(document.getElementById('resources_pie'));
+        const resourcesLine = echarts.init(document.getElementById('resources_line'));
+        const cpuGauge = echarts.init(document.getElementById('cpu_gauge'));
+        const memoryGauge = echarts.init(document.getElementById('memory_gauge'));
+
+        // Set gauge options with simplified design
+        function getGaugeOption(title, value, max) {
+            return {
+                series: [{
+                    type: 'gauge',
+                    center: ['50%', '60%'],
+                    startAngle: 180,
+                    endAngle: 0,
+                    min: 0,
+                    max: max,
+                    splitNumber: 10,
+                    radius: '100%',
+                    axisLine: {
+                        lineStyle: {
+                            width: 20,
+                            color: [
+                                [0.5, '#67e8f9'],
+                                [0.8, '#93c5fd'],
+                                [1, '#6366f1']
+                            ]
+                        }
+                    },
+                    pointer: {
+                        icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                        length: '12%',
+                        width: 12,
+                        offsetCenter: [0, '-50%'],
+                        itemStyle: {
+                            color: 'auto'
+                        }
+                    },
+                    axisTick: {
+                        show: false
+                    },
+                    splitLine: {
+                        show: false
+                    },
+                    axisLabel: {
+                        show: false
+                    },
+                    detail: {
+                        fontSize: 24,
+                        offsetCenter: [0, '0%'],
+                        valueAnimation: true,
+                        formatter: '{value}',
+                        color: 'auto'
+                    },
+                    data: [{
+                        value: value
+                    }]
+                }]
+            };
+        }
+
+        // Initialize gauges with 0-100 range
+        cpuGauge.setOption(getGaugeOption('CPU Usage', 0, 100));
+        memoryGauge.setOption(getGaugeOption('Memory Usage', 0, 100));
+
+        // Function to interpret throttled state
+        function interpretThrottledState(throttledState) {
+            if (!throttledState) return { status: 'good', message: 'No throttling detected' };
+
+            const throttled = parseInt(throttledState.split('=')[1], 16);
+            let status = 'good';
+            let messages = [];
+
+            // Check individual bits in the throttled state
+            if (throttled & 0x1) {
+                messages.push("Under-voltage detected");
+                status = 'critical';
+            }
+            if (throttled & 0x2) {
+                messages.push("Arm frequency capped");
+                status = status === 'good' ? 'warning' : status;
+            }
+            if (throttled & 0x4) {
+                messages.push("Currently throttled");
+                status = status === 'good' ? 'warning' : status;
+            }
+            if (throttled & 0x8) {
+                messages.push("Soft temperature limit active");
+                status = status === 'good' ? 'warning' : status;
+            }
+            if (throttled & 0x10000) {
+                messages.push("Under-voltage has occurred");
+                status = status === 'good' ? 'warning' : status;
+            }
+            if (throttled & 0x20000) {
+                messages.push("Arm frequency capping has occurred");
+                status = status === 'good' ? 'warning' : status;
+            }
+            if (throttled & 0x40000) {
+                messages.push("Throttling has occurred");
+                status = status === 'good' ? 'warning' : status;
+            }
+            if (throttled & 0x80000) {
+                messages.push("Soft temperature limit has occurred");
+                status = status === 'good' ? 'warning' : status;
+            }
+
+            return {
+                status: status,
+                message: messages.length > 0 ? messages.join(', ') : 'No throttling detected',
+                raw: throttledState
+            };
+        }
+
+        // Function to create alert row
+        function createAlertRow(severity, message, timestamp = null) {
+            const timeText = timestamp ? new Date(timestamp).toLocaleTimeString() : 'Just now';
+            const nodeText = 'NodeL0';
+
+            let badgeClass = 'badge-info';
+            let badgeText = 'Info';
+
+            if (severity === 'warning') {
+                badgeClass = 'badge-warning';
+                badgeText = 'Warning';
+            } else if (severity === 'critical') {
+                badgeClass = 'badge-critical';
+                badgeText = 'Critical';
+            }
+
+            return `
+                <tr>
+                    <td class="card-text">${timeText}</td>
+                    <td><span class="${badgeClass}">${badgeText}</span></td>
+                    <td class="card-text" title="${message}">${message.length > 50 ? message.substring(0, 50) + '...' : message}</td>
+                    <td class="card-text">${nodeText}</td>
+                </tr>
+            `;
+        }
+
+        // Function to update alerts
+        function updateAlerts(throttledState, cpuTemp, cpuUsage, ramUsage, latestError) {
+            const alertsContainer = document.getElementById('alerts-container');
+            let alertsHTML = '';
+            const now = new Date();
+
+            const throttledInfo = interpretThrottledState(throttledState);
+
+            // Add throttling alerts if any
+            if (throttledInfo.status !== 'good') {
+                alertsHTML += createAlertRow(
+                    throttledInfo.status,
+                    `System throttling: ${throttledInfo.message} (${throttledInfo.raw})`,
+                    now
+                );
+            }
+
+            // Add CPU temperature alert if high
+            if (cpuTemp > 75) {
+                alertsHTML += createAlertRow(
+                    'critical',
+                    `High CPU temperature: ${Math.round(cpuTemp)}°C (Above safe threshold)`,
+                    now
+                );
+            } else if (cpuTemp > 65) {
+                alertsHTML += createAlertRow(
+                    'warning',
+                    `Elevated CPU temperature: ${Math.round(cpuTemp)}°C`,
+                    now
+                );
+            }
+
+            // Add CPU usage alert if high
+            if (cpuUsage > 90) {
+                alertsHTML += createAlertRow(
+                    'warning',
+                    `High CPU usage: ${Math.round(cpuUsage)}%`,
+                    now
+                );
+            }
+
+            // Add RAM usage alert if high
+            if (ramUsage > 90) {
+                alertsHTML += createAlertRow(
+                    'warning',
+                    `High RAM usage: ${Math.round(ramUsage)}%`,
+                    now
+                );
+            }
+
+            // Add latest error if exists
+            if (latestError && latestError !== 'None') {
+                alertsHTML += createAlertRow(
+                    'warning',
+                    `System error: ${latestError}`,
+                    now
+                );
+            }
+
+            // If no alerts, show all good message
+            if (alertsHTML === '') {
+                alertsHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-4 card-text">
+                            No active alerts. All systems operational.
+                        </td>
+                    </tr>
+                `;
+            }
+
+            alertsContainer.innerHTML = alertsHTML;
+        }
+
+        // Fullscreen stream function
+        function openFullscreenStream() {
+            const streamUrl = document.getElementById('stream-iframe').src;
+            window.open(streamUrl, '_blank', 'width=1280,height=720,top=100,left=100');
+        }
+
+        // Fetch data function
+        async function fetchData() {
+            try {
+                const res = await fetch('data.php');
+                const data = await res.json();
+
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('timestamp').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+
+                // Update countdown
+                let seconds = 5;
+                const countdownElement = document.getElementById('countdown');
+                const countdownInterval = setInterval(() => {
+                    countdownElement.textContent = `Refreshing in ${seconds}s`;
+                    seconds--;
+                    if (seconds < 0) {
+                        clearInterval(countdownInterval);
+                    }
+                }, 1000);
+
+                // Update metric values
+                document.getElementById('ambient_value').textContent = `${Math.round(data.outer_temp)}°C`;
+                document.getElementById('inside_temp').textContent = `${Math.round(data.inside_temp)}°C`;
+                document.getElementById('inside_humidity').textContent = `${Math.round(data.humidity)}%`;
+                document.getElementById('inside_pressure').textContent = `${Math.round(data.pressure)}hPa`;
+                document.getElementById('voltage').textContent = `${data.core_volts}V`;
+                document.getElementById('net_up').textContent = `${data.net_up}kbps`;
+                document.getElementById('net_down').textContent = `${data.net_down}kbps`;
+                document.getElementById('uptime').textContent = data.uptime;
+
+                // Update system status based on throttled state
+                const throttledInfo = interpretThrottledState(data.throttled_state);
+                const systemStatusElement = document.getElementById('system-status');
+                systemStatusElement.className = 'status-indicator status-' + throttledInfo.status;
+
+                // Update CPU and memory status indicators
+                document.getElementById('cpu-status').className = 'status-indicator status-' +
+                    (data.cpu_temp > 75 ? 'critical' : data.cpu_temp > 65 ? 'warning' : 'good');
+                document.getElementById('memory-status').className = 'status-indicator status-' +
+                    (data.ram_usage > 90 ? 'warning' : 'good');
+
+                // Update charts
+                resourcesPie.setOption({
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{a} <br/>{b}: {c} ({d}%)'
+                    },
+                    legend: {
+                        orient: 'vertical',
+                        right: 10,
+                        top: 'center',
+                        data: ['CPU Temp', 'CPU Usage', 'RAM Usage', 'Disk Usage'],
+                        textStyle: {
+                            color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                        }
+                    },
+                    series: [{
+                        name: 'Resource Usage',
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        avoidLabelOverlap: false,
+                        itemStyle: {
+                            borderRadius: 10,
+                            borderColor: document.body.classList.contains('light') ? '#fff' : '#1f2937',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false,
+                            position: 'center'
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontSize: '18',
+                                fontWeight: 'bold'
+                            }
+                        },
+                        labelLine: {
+                            show: false
+                        },
+                        data: [
+                            { value: data.cpu_temp, name: 'CPU Temp' },
+                            { value: data.cpu_usage, name: 'CPU Usage' },
+                            { value: data.ram_usage, name: 'RAM Usage' },
+                            { value: data.disk_usage, name: 'Disk Usage' }
+                        ]
+                    }]
+                });
+
+                resourcesLine.setOption({
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow'
+                        }
+                    },
+                    grid: {
+                        left: '3%',
+                        right: '4%',
+                        bottom: '3%',
+                        containLabel: true
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: ['CPU', 'RAM', 'Disk', 'Temp'],
+                        axisLine: {
+                            lineStyle: {
+                                color: '#9ca3af'
+                            }
+                        },
+                        axisLabel: {
+                            color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        min: 0,
+                        max: 100,
+                        axisLine: {
+                            lineStyle: {
+                                color: '#9ca3af'
+                            }
+                        },
+                        axisLabel: {
+                            color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: document.body.classList.contains('light') ? '#e5e7eb' : '#374151'
+                            }
+                        }
+                    },
+                    series: [{
+                        name: 'Usage',
+                        type: 'line',
+                        smooth: true,
+                        lineStyle: {
+                            width: 3,
+                            color: '#4f46e5'
+                        },
+                        itemStyle: {
+                            color: '#4f46e5'
+                        },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                {
+                                    offset: 0,
+                                    color: 'rgba(79, 70, 229, 0.3)'
+                                },
+                                {
+                                    offset: 1,
+                                    color: 'rgba(79, 70, 229, 0.1)'
+                                }
+                            ])
+                        },
+                        data: [data.cpu_usage, data.ram_usage, data.disk_usage, data.cpu_temp]
+                    }]
+                });
+
+                // Update gauges with rounded values (0-100 range)
+                cpuGauge.setOption(getGaugeOption('CPU Usage', Math.round(data.cpu_usage), 100));
+                memoryGauge.setOption(getGaugeOption('Memory Usage', Math.round(data.ram_usage), 100));
+
+                // Update alerts
+                updateAlerts(data.throttled_state, data.cpu_temp, data.cpu_usage, data.ram_usage, data.latest_error);
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+
+                // Show error alert
+                const alertsContainer = document.getElementById('alerts-container');
+                alertsContainer.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-red-400">
+                            Failed to fetch data from server. Please check your connection.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Set up auto-refresh
+        setInterval(fetchData, 5000);
+        fetchData();
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('light');
+            const icon = document.getElementById('theme-icon');
+            if (document.body.classList.contains('light')) {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+
+            // Update navbar theme
+            const navbar = document.querySelector('.navbar');
+            const navTexts = document.querySelectorAll('.nav-text');
+            const navBadges = document.querySelectorAll('.nav-badge');
+
+            if (document.body.classList.contains('light')) {
+                navbar.classList.add('bg-white');
+                navbar.classList.remove('bg-gray-800');
+                navTexts.forEach(el => el.classList.add('text-gray-900'));
+                navTexts.forEach(el => el.classList.remove('text-gray-100'));
+                navBadges.forEach(el => el.classList.add('bg-gray-100'));
+                navBadges.forEach(el => el.classList.remove('bg-gray-700'));
+            } else {
+                navbar.classList.remove('bg-white');
+                navbar.classList.add('bg-gray-800');
+                navTexts.forEach(el => el.classList.remove('text-gray-900'));
+                navTexts.forEach(el => el.classList.add('text-gray-100'));
+                navBadges.forEach(el => el.classList.remove('bg-gray-100'));
+                navBadges.forEach(el => el.classList.add('bg-gray-700'));
+            }
+
+            // Re-render charts with updated colors
+            resourcesPie.setOption({
+                legend: {
+                    textStyle: {
+                        color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                    }
+                },
+                series: [{
+                    itemStyle: {
+                        borderColor: document.body.classList.contains('light') ? '#fff' : '#1f2937'
+                    }
+                }]
+            });
+
+            resourcesLine.setOption({
+                xAxis: {
+                    axisLabel: {
+                        color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                    }
+                },
+                yAxis: {
+                    axisLabel: {
+                        color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: document.body.classList.contains('light') ? '#e5e7eb' : '#374151'
+                        }
+                    }
+                }
+            });
+
+            cpuGauge.setOption({
+                detail: {
+                    color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                }
+            });
+
+            memoryGauge.setOption({
+                detail: {
+                    color: document.body.classList.contains('light') ? '#111827' : '#f3f4f6'
+                }
+            });
+
+            // Re-render charts
+            resourcesPie.resize();
+            resourcesLine.resize();
+            cpuGauge.resize();
+            memoryGauge.resize();
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function () {
+            resourcesPie.resize();
+            resourcesLine.resize();
+            cpuGauge.resize();
+            memoryGauge.resize();
+        });
+    </script>
+</body>
+
+</html>
