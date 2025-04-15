@@ -1,56 +1,158 @@
 <?php
-header('Content-Type: application/json');
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, DELETE");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Database connection details
-$host = "localhost";
-$dbname = "node-db";
-$username = "admin";
-$password = "node@123";
+$db_host = "localhost";
+$db_user = "admin";
+$db_pass = "node@123";
+$db_name = "node-db";
 
-$conn = new mysqli($host, $username, $password, $dbname);
+// Create connection
+$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+
+// Check connection
 if ($conn->connect_error) {
-  echo json_encode(["error" => "Database connection failed"]);
-  exit;
+    die(json_encode(["status" => "error", "message" => "Connection failed: " . $conn->connect_error]));
 }
 
-function getLatest($table, $fields = "*") {
-  global $conn;
-  $result = $conn->query("SELECT $fields FROM $table ORDER BY timestamp DESC LIMIT 1");
-  return $result->fetch_assoc();
+// Helper function to verify credentials
+function verifyCredentials($conn, $username, $password) {
+    $stmt = $conn->prepare("SELECT password_hash FROM `user-credentials` WHERE username = ?");
+    $stmt->bind_param("s", $username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows === 0) return false;
+    
+    $row = $result->fetch_assoc();
+    $hashed_input = hash('sha256', $password . 'somesalt');
+    return hash_equals($row['password_hash'], $hashed_input);
 }
 
-$data = [];
+// API to login
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'login') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    if (empty($data['username']) || empty($data['password'])) {
+        echo json_encode(["status" => "error", "message" => "Username and password are required"]);
+        exit;
+    }
+    
+    if (verifyCredentials($conn, $data['username'], $data['password'])) {
+        echo json_encode(["status" => "success", "token" => base64_encode($data['username'] . ':' . hash('sha256', $data['password'] . 'somesalt'))]);
+    } else {
+        echo json_encode(["status" => "error", "message" => "Invalid credentials"]);
+    }
+    exit;
+}
 
-// Get the latest data for each sensor
-$outer = getLatest("outer_sensor", "temperature AS outer_temp");
-$inner = getLatest("inner_sensor", "temperature AS inside_temp, humidity, pressure");
-$health = getLatest("board_health", "cpu_temp, ram_usage, cpu_usage, disk_usage, net_up, net_down, core_volts, throttled_state, uptime");
-$error = getLatest("error_logs", "message AS latest_error");
+// Verify token for all other endpoints
+if (!isset($_GET['action']) || $_GET['action'] !== 'login') {
+    if (!isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        header('HTTP/1.0 401 Unauthorized');
+        echo json_encode(["status" => "error", "message" => "Authorization required"]);
+        exit;
+    }
+    
+    $auth = $_SERVER['HTTP_AUTHORIZATION'];
+    if (strpos($auth, 'Bearer ') !== 0) {
+        header('HTTP/1.0 401 Unauthorized');
+        echo json_encode(["status" => "error", "message" => "Invalid authorization format"]);
+        exit;
+    }
+    
+    $token = substr($auth, 7);
+    $decoded = base64_decode($token);
+    if ($decoded === false || strpos($decoded, ':') === false) {
+        header('HTTP/1.0 401 Unauthorized');
+        echo json_encode(["status" => "error", "message" => "Invalid token"]);
+        exit;
+    }
+    
+    list($username, $password_hash) = explode(':', $decoded, 2);
+    if (!verifyCredentials($conn, $username, 'dummy')) { // We only check the hash matches
+        $stmt = $conn->prepare("SELECT password_hash FROM `user-credentials` WHERE username = ?");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        if ($result->num_rows === 0 || !hash_equals($result->fetch_assoc()['password_hash'], $password_hash)) {
+            header('HTTP/1.0 401 Unauthorized');
+            echo json_encode(["status" => "error", "message" => "Invalid token"]);
+            exit;
+        }
+    }
+}
 
-// Merge data arrays
-$data = array_merge($data, $outer ?? []);
-$data = array_merge($data, $inner ?? []);
-$data = array_merge($data, $health ?? []);
-$data = array_merge($data, $error ?? ["latest_error" => "None"]);
+// API to get all nodes
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && (!isset($_GET['action']) || $_GET['action'] !== 'login')) {
+    $sql = "SELECT node_name, node_ip FROM `node-stat` ORDER BY created_at DESC";
+    $result = $conn->query($sql);
+    
+    $nodes = [];
+    if ($result->num_rows > 0) {
+        while($row = $result->fetch_assoc()) {
+            $nodes[] = $row;
+        }
+    }
+    
+    echo json_encode(["status" => "success", "nodes" => $nodes]);
+    exit;
+}
 
-// Ensure that the data is numeric where applicable, and fallback to default values if missing
-$data['outer_temp'] = isset($data['outer_temp']) ? floatval($data['outer_temp']) : 0;
-$data['inside_temp'] = isset($data['inside_temp']) ? floatval($data['inside_temp']) : 0;
-$data['humidity'] = isset($data['humidity']) ? floatval($data['humidity']) : 0;
-$data['pressure'] = isset($data['pressure']) ? floatval($data['pressure']) : 0;
-$data['cpu_temp'] = isset($data['cpu_temp']) ? floatval($data['cpu_temp']) : 0;
-$data['ram_usage'] = isset($data['ram_usage']) ? floatval($data['ram_usage']) : 0;
-$data['cpu_usage'] = isset($data['cpu_usage']) ? floatval($data['cpu_usage']) : 0;
-$data['disk_usage'] = isset($data['disk_usage']) ? floatval($data['disk_usage']) : 0;
-$data['net_up'] = isset($data['net_up']) ? intval($data['net_up']) : 0;
-$data['net_down'] = isset($data['net_down']) ? intval($data['net_down']) : 0;
-$data['core_volts'] = isset($data['core_volts']) ? floatval($data['core_volts']) : 0;
-$data['throttled_state'] = isset($data['throttled_state']) ? $data['throttled_state'] : 'None';
-$data['uptime'] = isset($data['uptime']) ? $data['uptime'] : 'Unknown';
-$data['latest_error'] = isset($data['latest_error']) ? $data['latest_error'] : 'None';
+// API to add a node
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (!isset($_GET['action']) || $_GET['action'] !== 'login')) {
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    if (empty($data['node_name']) || empty($data['node_ip'])) {
+        echo json_encode(["status" => "error", "message" => "Node name and IP are required"]);
+        exit;
+    }
+    
+    // Check if node exists
+    $stmt = $conn->prepare("SELECT id FROM `node-stat` WHERE node_name = ? OR node_ip = ?");
+    $stmt->bind_param("ss", $data['node_name'], $data['node_ip']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows > 0) {
+        echo json_encode(["status" => "error", "message" => "Node name or IP already exists"]);
+        exit;
+    }
+    
+    // Insert new node
+    $stmt = $conn->prepare("INSERT INTO `node-stat` (node_name, node_ip) VALUES (?, ?)");
+    $stmt->bind_param("ss", $data['node_name'], $data['node_ip']);
+    
+    if ($stmt->execute()) {
+        echo json_encode(["status" => "success", "message" => "Node added successfully"]);
+    } else {
+        echo json_encode(["status" => "error", "message" => "Error adding node"]);
+    }
+    exit;
+}
 
-// Return the merged data as JSON
-echo json_encode($data);
+// API to remove a node
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    parse_str(file_get_contents('php://input'), $data);
+    
+    if (empty($data['node_ip'])) {
+        echo json_encode(["status" => "error", "message" => "Node IP is required"]);
+        exit;
+    }
+    
+    $stmt = $conn->prepare("DELETE FROM `node-stat` WHERE node_ip = ?");
+    $stmt->bind_param("s", $data['node_ip']);
+    
+    if ($stmt->execute()) {
+        echo json_encode(["status" => "success", "message" => "Node removed successfully"]);
+    } else {
+        echo json_encode(["status" => "error", "message" => "Error removing node"]);
+    }
+    exit;
+}
 
-$conn->close();
+echo json_encode(["status" => "error", "message" => "Invalid request"]);
 ?>
