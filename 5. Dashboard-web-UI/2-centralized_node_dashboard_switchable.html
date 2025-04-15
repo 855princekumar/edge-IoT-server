@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Centralized Node Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        iframe {
+            width: 100%;
+            height: calc(100vh - 60px);
+            border: none;
+        }
+
+        .nav-bar {
+            background-color: #1a202c;
+            color: white;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .nav-input {
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            height: 32px;
+        }
+
+        .nav-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .nav-button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            height: 32px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-button:hover {
+            background-color: #3182ce;
+        }
+
+        .nav-button.danger {
+            background-color: #e53e3e;
+        }
+
+        .nav-button.danger:hover {
+            background-color: #c53030;
+        }
+
+        .nav-button.secondary {
+            background-color: #4a5568;
+        }
+
+        .nav-button.secondary:hover {
+            background-color: #2d3748;
+        }
+
+        .node-display {
+            font-weight: 500;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="nav-bar">
+        <div class="logo">Multi-Node Dashboard</div>
+
+        <input id="nodeName" type="text" placeholder="Node Name" class="nav-input" style="width: 150px;">
+        <input id="nodeIP" type="text" placeholder="Node IP" class="nav-input" style="width: 150px;">
+        <button onclick="addNode()" class="nav-button">Add Node</button>
+
+        <div class="nav-controls">
+            <button onclick="prevNode()" class="nav-button secondary" title="Previous Node">&lt;</button>
+            <div id="nodeLabel" class="node-display">No nodes</div>
+            <button onclick="nextNode()" class="nav-button secondary" title="Next Node">&gt;</button>
+            <button onclick="removeNode()" class="nav-button danger" title="Remove Current Node">Remove</button>
+        </div>
+    </div>
+
+    <iframe id="dashboardFrame" src=""></iframe>
+
+    <script>
+        let nodes = JSON.parse(localStorage.getItem("nodes") || "[]");
+        let currentIndex = 0;
+        let iframeCache = {};
+
+        function saveNodes() {
+            localStorage.setItem("nodes", JSON.stringify(nodes));
+        }
+
+        function addNode() {
+            const name = document.getElementById("nodeName").value.trim();
+            const ip = document.getElementById("nodeIP").value.trim();
+            if (!name || !ip) return alert("Both Node Name and IP are required.");
+            if (!nodes.some(n => n.ip === ip)) {
+                nodes.push({ name, ip });
+                saveNodes();
+                currentIndex = nodes.length - 1;
+                updateView();
+                document.getElementById("nodeName").value = "";
+                document.getElementById("nodeIP").value = "";
+            } else {
+                alert("This node is already added.");
+            }
+        }
+
+        function removeNode() {
+            if (nodes.length === 0) return;
+            if (!confirm(`Remove node ${nodes[currentIndex].name}?`)) return;
+
+            nodes.splice(currentIndex, 1);
+            if (currentIndex >= nodes.length) currentIndex = nodes.length - 1;
+            saveNodes();
+            updateView();
+        }
+
+        function nextNode() {
+            if (nodes.length > 0) {
+                currentIndex = (currentIndex + 1) % nodes.length;
+                updateView();
+            }
+        }
+
+        function prevNode() {
+            if (nodes.length > 0) {
+                currentIndex = (currentIndex - 1 + nodes.length) % nodes.length;
+                updateView();
+            }
+        }
+
+        function updateView() {
+            const label = document.getElementById("nodeLabel");
+            const frame = document.getElementById("dashboardFrame");
+
+            if (nodes.length === 0) {
+                label.textContent = "No nodes";
+                frame.src = "";
+                return;
+            }
+
+            const node = nodes[currentIndex];
+            label.textContent = node.name;
+
+            if (!iframeCache[node.ip]) {
+                iframeCache[node.ip] = `http://${node.ip}/dashboard`;
+            }
+
+            frame.src = iframeCache[node.ip];
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextNode();
+            if (e.key === 'ArrowLeft') prevNode();
+        });
+
+        window.onload = () => {
+            updateView();
+
+            // Focus the first input for quick adding
+            document.getElementById("nodeName").focus();
+        };
+    </script>
+</body>
+
+</html>
