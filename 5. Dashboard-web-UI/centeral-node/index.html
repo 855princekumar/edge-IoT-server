@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Centralized Node Monitoring Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        iframe {
+            width: 100%;
+            height: calc(100vh - 60px);
+            border: none;
+            display: none;
+        }
+
+        .nav-bar {
+            background-color: #1a202c;
+            color: white;
+            height: 60px;
+            display: none;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .nav-input {
+            background-color: #2d3748;
+            border: 1px solid #4a5568;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            height: 32px;
+        }
+
+        .nav-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .nav-button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            height: 32px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-button:hover {
+            background-color: #3182ce;
+        }
+
+        .nav-button.danger {
+            background-color: #e53e3e;
+        }
+
+        .nav-button.danger:hover {
+            background-color: #c53030;
+        }
+
+        .nav-button.secondary {
+            background-color: #4a5568;
+        }
+
+        .nav-button.secondary:hover {
+            background-color: #2d3748;
+        }
+
+        .node-display {
+            font-weight: 500;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-right: 20px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .status-online {
+            background-color: #48bb78;
+        }
+
+        .status-offline {
+            background-color: #e53e3e;
+        }
+
+        .modal {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #1a202c;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .login-modal {
+            display: flex;
+        }
+
+        .dashboard-content {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login Modal (always visible initially) -->
+    <div id="loginModal" class="login-modal modal">
+        <div class="modal-content">
+            <div class="modal-title">Node Dashboard Login</div>
+            <input id="loginUsername" type="text" placeholder="Username" class="modal-input">
+            <input id="loginPassword" type="password" placeholder="Password" class="modal-input">
+            <div class="modal-actions">
+                <button onclick="handleLogin()" class="nav-button">Login</button>
+            </div>
+            <div id="loginError" class="text-red-500 mt-2"></div>
+        </div>
+    </div>
+
+    <!-- Dashboard Content (hidden until login) -->
+    <div id="dashboardContent" class="dashboard-content">
+        <div class="nav-bar">
+            <div class="logo">Node Dashboard</div>
+
+            <div class="nav-controls">
+                <button onclick="prevNode()" class="nav-button secondary" title="Previous Node">&lt;</button>
+                <div id="nodeLabel" class="node-display">
+                    <span id="statusIndicator" class="status-indicator status-offline"></span>
+                    <span id="nodeNameDisplay">Loading nodes...</span>
+                </div>
+                <button onclick="nextNode()" class="nav-button secondary" title="Next Node">&gt;</button>
+                <button onclick="showAddNodeModal()" class="nav-button" title="Add Node">+ Add</button>
+                <button onclick="removeCurrentNode()" class="nav-button danger" title="Remove Current Node">-
+                    Remove</button>
+                <button onclick="refreshNodes()" class="nav-button" title="Refresh Nodes">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <iframe id="dashboardFrame" src=""></iframe>
+
+        <!-- Add Node Modal -->
+        <div id="addNodeModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-title">Add New Node</div>
+                <input id="modalNodeName" type="text" placeholder="Node Name" class="modal-input">
+                <input id="modalNodeIP" type="text" placeholder="Node IP" class="modal-input">
+                <div class="modal-actions">
+                    <button onclick="hideAddNodeModal()" class="nav-button secondary">Cancel</button>
+                    <button onclick="addNode()" class="nav-button">Add Node</button>
+                </div>
+                <div id="modalError" class="text-red-500 mt-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let nodes = [];
+        let currentIndex = 0;
+        let iframeCache = {};
+        const apiUrl = 'api.php';
+        let authToken = null;
+
+        // Login handling
+        async function handleLogin() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value.trim();
+
+            if (!username || !password) {
+                document.getElementById('loginError').textContent = 'Username and password are required';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiUrl}?action=login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    authToken = data.token;
+                    localStorage.setItem('authToken', authToken);
+                    document.getElementById('loginModal').style.display = 'none';
+                    document.getElementById('dashboardContent').style.display = 'block';
+                    document.querySelector('.nav-bar').style.display = 'flex';
+                    document.getElementById('dashboardFrame').style.display = 'block';
+                    await refreshNodes();
+                } else {
+                    document.getElementById('loginError').textContent = data.message || 'Login failed';
+                }
+            } catch (error) {
+                document.getElementById('loginError').textContent = 'Network error during login';
+            }
+        }
+
+        // Check for existing token on page load
+        window.onload = async () => {
+            const storedToken = localStorage.getItem('authToken');
+            if (storedToken) {
+                // Verify token is still valid
+                try {
+                    const response = await fetch(apiUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${storedToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        authToken = storedToken;
+                        document.getElementById('loginModal').style.display = 'none';
+                        document.getElementById('dashboardContent').style.display = 'block';
+                        document.querySelector('.nav-bar').style.display = 'flex';
+                        document.getElementById('dashboardFrame').style.display = 'block';
+                        await refreshNodes();
+                    } else {
+                        localStorage.removeItem('authToken');
+                    }
+                } catch (error) {
+                    localStorage.removeItem('authToken');
+                }
+            }
+        };
+
+        // API calls with auth
+        async function fetchNodes() {
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    localStorage.setItem('cachedNodes', JSON.stringify(data.nodes));
+                    localStorage.setItem('lastFetchTime', new Date().getTime());
+                    return data.nodes;
+                } else {
+                    console.error('Error fetching nodes:', data.message);
+                    const cachedNodes = JSON.parse(localStorage.getItem('cachedNodes') || []);
+                    return cachedNodes;
+                }
+            } catch (error) {
+                console.error('Error fetching nodes:', error);
+                const cachedNodes = JSON.parse(localStorage.getItem('cachedNodes') || []);
+                return cachedNodes;
+            }
+        }
+
+        async function addNodeToDB(nodeName, nodeIP) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        node_name: nodeName,
+                        node_ip: nodeIP
+                    })
+                });
+
+                return await response.json();
+            } catch (error) {
+                return { status: 'error', message: 'Network error' };
+            }
+        }
+
+        async function removeNodeFromDB(nodeIP) {
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: `node_ip=${encodeURIComponent(nodeIP)}`
+                });
+
+                return await response.json();
+            } catch (error) {
+                return { status: 'error', message: 'Network error' };
+            }
+        }
+
+        // Rest of the functions remain the same as previous version
+        async function refreshNodes() {
+            nodes = await fetchNodes();
+            if (nodes.length === 0) {
+                document.getElementById('nodeNameDisplay').textContent = "No nodes available";
+                document.getElementById('statusIndicator').className = 'status-indicator status-offline';
+                document.getElementById('dashboardFrame').src = '';
+                currentIndex = 0;
+                return;
+            }
+
+            if (currentIndex >= nodes.length) {
+                currentIndex = 0;
+            }
+
+            updateView();
+        }
+
+        function updateView() {
+            const node = nodes[currentIndex];
+            const nodeNameDisplay = document.getElementById('nodeNameDisplay');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const frame = document.getElementById('dashboardFrame');
+
+            nodeNameDisplay.textContent = node.node_name;
+            statusIndicator.className = 'status-indicator status-online';
+
+            if (!iframeCache[node.node_ip]) {
+                iframeCache[node.node_ip] = `http://${node.node_ip}/dashboard`;
+            }
+
+            frame.src = iframeCache[node.node_ip];
+        }
+
+        function nextNode() {
+            if (nodes.length > 0) {
+                currentIndex = (currentIndex + 1) % nodes.length;
+                updateView();
+            }
+        }
+
+        function prevNode() {
+            if (nodes.length > 0) {
+                currentIndex = (currentIndex - 1 + nodes.length) % nodes.length;
+                updateView();
+            }
+        }
+
+        function showAddNodeModal() {
+            document.getElementById('addNodeModal').style.display = 'flex';
+            document.getElementById('modalNodeName').value = '';
+            document.getElementById('modalNodeIP').value = '';
+            document.getElementById('modalError').textContent = '';
+        }
+
+        function hideAddNodeModal() {
+            document.getElementById('addNodeModal').style.display = 'none';
+        }
+
+        async function addNode() {
+            const nodeName = document.getElementById('modalNodeName').value.trim();
+            const nodeIP = document.getElementById('modalNodeIP').value.trim();
+
+            if (!nodeName || !nodeIP) {
+                document.getElementById('modalError').textContent = 'All fields are required';
+                return;
+            }
+
+            const result = await addNodeToDB(nodeName, nodeIP);
+
+            if (result.status === 'success') {
+                hideAddNodeModal();
+                await refreshNodes();
+            } else {
+                document.getElementById('modalError').textContent = result.message || 'Error adding node';
+            }
+        }
+
+        async function removeCurrentNode() {
+            if (nodes.length === 0 || currentIndex >= nodes.length) return;
+
+            const node = nodes[currentIndex];
+            if (!confirm(`Are you sure you want to remove node ${node.node_name} (${node.node_ip})?`)) return;
+
+            const result = await removeNodeFromDB(node.node_ip);
+
+            if (result.status === 'success') {
+                await refreshNodes();
+            } else {
+                alert(result.message || 'Error removing node');
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') nextNode();
+            if (e.key === 'ArrowLeft') prevNode();
+            if (e.key === 'Enter' && document.getElementById('loginModal').style.display === 'flex') {
+                handleLogin();
+            }
+        });
+
+        // Auto-refresh nodes every 5 minutes
+        function startAutoRefresh() {
+            setInterval(refreshNodes, 300000);
+        }
+
+        // Start auto-refresh after successful login
+        if (authToken) {
+            startAutoRefresh();
+        }
+    </script>
+</body>
+
+</html>
