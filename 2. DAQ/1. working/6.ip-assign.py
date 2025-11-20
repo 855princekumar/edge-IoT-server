@@ -2,45 +2,74 @@
 import subprocess
 import time
 
-SSID = "wifi_name"
+SSID = "wifi-Name"
 PASSWORD = "password"
-STATIC_IP = "ip"
-ROUTER = "router_ip"
-DNS = ""
+STATIC_IP = "IP/23"
+GATEWAY = "Gateway"
+DNS = "8.8.8.8,1.1.1.1"
 
-def configure_wifi():
-    wpa_config = f"""ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
-country=IN
 
-network={{
-    ssid=\"{SSID}\"
-    psk=\"{PASSWORD}\"
-    key_mgmt=WPA-PSK
-}}"""
-    with open("/etc/wpa_supplicant/wpa_supplicant.conf", "w") as f:
-        f.write(wpa_config)
-    print("✅ Wi-Fi configuration set for 'IOT LAB'.")
+def run(cmd):
+    try:
+        return subprocess.check_output(cmd, shell=True, text=True).strip()
+    except:
+        return ""
 
-def configure_static_ip():
-    static_config = f"""
-interface wlan0
-static ip_address={STATIC_IP}
-static routers={ROUTER}
-static domain_name_servers={DNS}"""
-    with open("/etc/dhcpcd.conf", "a") as f:
-        f.write(static_config)
-    print("✅ Static IP configuration applied.")
+
+def remove_old_wifi():
+    print("🧹 Removing old WiFi profiles...")
+
+    connections = run("nmcli -t -f NAME,TYPE connection show").split("\n")
+    for c in connections:
+        if ":wifi" in c:
+            name = c.split(":")[0]
+            print(f"   🔥 Removing: {name}")
+            run(f"nmcli connection delete '{name}'")
+
+
+def add_new_wifi():
+    print("📡 Adding NEW WiFi connection...")
+    run(f"nmcli device wifi connect \"{SSID}\" password \"{PASSWORD}\" ifname wlan0")
+    time.sleep(1)
+
+    # Rename it so we know it
+    run("nmcli connection modify 'IOT LAB' connection.id IOT-LAB")
+    print("✅ WiFi added as: IOT-LAB")
+
+
+def apply_static_ip():
+    print("⚙️ Setting STATIC IP using NetworkManager...")
+
+    run(f"nmcli connection modify IOT-LAB ipv4.addresses {STATIC_IP}")
+    run(f"nmcli connection modify IOT-LAB ipv4.gateway {GATEWAY}")
+    run(f"nmcli connection modify IOT-LAB ipv4.dns \"{DNS}\"")
+    run("nmcli connection modify IOT-LAB ipv4.method manual")
+
+    print("✅ Static IP applied.")
+
+
+def disable_auto_DHCP_profiles():
+    print("🛑 Disabling NetworkManager auto-generated DHCP WiFi...")
+    run("nmcli connection modify IOT-LAB connection.autoconnect yes")
+    run("nmcli connection reload")
+
 
 def reboot_system():
-    print("🔁 Rebooting in 5 seconds to apply changes...")
+    print("🔁 Rebooting in 5 seconds...")
     time.sleep(5)
     subprocess.run(["sudo", "reboot"])
 
+
 def main():
-    configure_wifi()
-    configure_static_ip()
+    print("🚀 Raspberry Pi WiFi + Static IP Setup (Bookworm Compatible)")
+
+    remove_old_wifi()
+    add_new_wifi()
+    apply_static_ip()
+    disable_auto_DHCP_profiles()
+
     reboot_system()
+
 
 if __name__ == "__main__":
     main()
