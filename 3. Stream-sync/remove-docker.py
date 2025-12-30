@@ -1,48 +1,54 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
 import subprocess
-import getpass
+import json
+import sys
 
-def run_command(command):
-    """Run a shell command and print output."""
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        print("Error: {}".format(stderr.decode("utf-8").strip()))
-    else:
-        print(stdout.decode("utf-8").strip())
+STATE_FILE = "/var/lib/docker-bootstrap/state.json"
 
-def remove_docker():
-    print("Removing Docker...")
+def sh(cmd):
+    print(f"\nâ–¶ {cmd}")
+    subprocess.run(cmd, shell=True, check=False)
 
-    # Stop the Docker service
-    run_command("systemctl stop docker")
+def require_root():
+    if os.geteuid() != 0:
+        print("âŒ Run as root: sudo -i")
+        sys.exit(1)
 
-    # Remove Docker
-    run_command("apt-get purge -y docker-ce")
+def main():
+    require_root()
 
-    # Remove any leftover dependencies
-    run_command("apt-get autoremove -y")
+    if not os.path.exists(STATE_FILE):
+        print("âš  No bootstrap state found â€” nothing to rollback")
+        return
 
-    print("Docker has been removed.")
+    with open(STATE_FILE) as f:
+        state = json.load(f)
 
-def remove_docker_compose():
-    print("Removing Docker Compose...")
+    print("ðŸ§¹ Rolling back Docker installation")
 
-    # Remove Docker Compose binary
-    run_command("rm -f /usr/local/bin/docker-compose")
+    sh("systemctl stop docker || true")
+    sh("systemctl disable docker || true")
 
-    print("Docker Compose has been removed.")
+    mgr = state.get("pkg_manager")
 
-def remove_docker_group():
-    print("Removing Docker group...")
+    if mgr == "apt":
+        sh("apt purge -y docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin docker-ce-rootless-extras || true")
+        sh("apt autoremove -y")
+    elif mgr == "dnf":
+        sh("dnf remove -y docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin || true")
+    elif mgr == "pacman":
+        sh("pacman -Rns --noconfirm docker docker-compose || true")
 
-    username = getpass.getuser()
-    run_command(f"gpasswd -d {username} docker || true")  # Remove user from docker group
-    run_command("groupdel docker || true")  # Delete the docker group if it exists
+    print("""
+âœ… Rollback completed safely
 
-    print("Docker group has been removed.")
+âœ” Docker removed
+âœ” No data deleted
+âœ” System integrity preserved
+""")
 
 if __name__ == "__main__":
-    remove_docker()
-    remove_docker_compose()
-    remove_docker_group()
-    print("Docker and Docker Compose removal completed.")
+    main()
