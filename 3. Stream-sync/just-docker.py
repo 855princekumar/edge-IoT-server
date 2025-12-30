@@ -1,64 +1,94 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import os
 import subprocess
-import getpass
+import shutil
+import sys
+import json
+import platform
+import time
 
-def run_command(command):
-    """Run a shell command and print output."""
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
-    if process.returncode != 0:
-        print("Error: {}".format(stderr.decode("utf-8").strip()))
+STATE_DIR = "/var/lib/docker-bootstrap"
+STATE_FILE = f"{STATE_DIR}/state.json"
+
+def sh(cmd):
+    print(f"\nâ–¶ {cmd}")
+    subprocess.run(cmd, shell=True, check=True)
+
+def require_root():
+    if os.geteuid() != 0:
+        print("âŒ Run as root: sudo -i")
+        sys.exit(1)
+
+def detect_pkg_manager():
+    for mgr in ("apt", "dnf", "pacman"):
+        if shutil.which(mgr):
+            return mgr
+    return None
+
+def docker_installed():
+    return shutil.which("docker") is not None
+
+def install_docker(pkg_mgr):
+    print("\nðŸ“¦ Installing Docker (with visible progress)")
+    if pkg_mgr in ("apt", "dnf"):
+        sh(
+            "export DEBIAN_FRONTEND=noninteractive APT_PROGRESS_FD=1 && "
+            "curl -fsSL https://get.docker.com | sed 's/-qq//g' | sh"
+        )
+    elif pkg_mgr == "pacman":
+        sh("pacman -Sy --noconfirm docker docker-compose")
     else:
-        print(stdout.decode("utf-8").strip())
+        print("âŒ Unsupported Linux distro")
+        sys.exit(1)
 
-def install_docker():
-    print("Updating package lists...")
-    run_command("apt-get update -y")
+def enable_docker():
+    sh("systemctl enable docker")
+    sh("systemctl start docker")
 
-    print("Installing prerequisite packages...")
-    run_command("apt-get install -y apt-transport-https ca-certificates curl software-properties-common")
+def setup_group():
+    user = os.environ.get("SUDO_USER")
+    if user:
+        sh("groupadd docker || true")
+        sh(f"usermod -aG docker {user}")
 
-    print("Adding Docker's official GPG key...")
-    run_command("curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -")
+def save_state(state):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
 
-    print("Setting up the Docker stable repository...")
-    run_command("add-apt-repository \"deb [arch=arm64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\"")
+def main():
+    require_root()
 
-    print("Updating package lists again...")
-    run_command("apt-get update -y")
+    pkg_mgr = detect_pkg_manager()
+    arch = platform.machine()
 
-    print("Installing Docker...")
-    run_command("apt-get install -y docker-ce")
+    if docker_installed():
+        print("âš  Docker already installed â€” nothing to do")
+        return
 
-    print("Adding current user to Docker group...")
-    username = getpass.getuser()
-    run_command("groupadd docker || true")  # Create docker group if it doesn't exist
-    run_command(f"usermod -aG docker {username}")
+    print("ðŸ” System detected")
+    print(f"   Package manager : {pkg_mgr}")
+    print(f"   Architecture    : {arch}")
 
-    print("Enabling and starting Docker service...")
-    run_command("systemctl enable docker")
-    run_command("systemctl start docker")
+    install_docker(pkg_mgr)
+    enable_docker()
+    setup_group()
 
-def install_docker_compose():
-    print("Downloading Docker Compose binary...")
-    # Corrected download link to match architecture
-    run_command("curl -L \"https://github.com/docker/compose/releases/download/v2.0.1/docker-compose-linux-aarch64\" -o /usr/local/bin/docker-compose")
+    save_state({
+        "installed_by_script": True,
+        "pkg_manager": pkg_mgr,
+        "arch": arch
+    })
 
-    print("Applying executable permissions to the Docker Compose binary...")
-    run_command("chmod +x /usr/local/bin/docker-compose")
+    print("""
+âœ… Docker installation completed successfully
 
-    print("Creating a symbolic link (optional)...")
-    run_command("ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true")  # Skip if link exists
-
-    print("Verifying Docker Compose installation...")
-    run_command("docker-compose --version")
-
-def refresh_group_membership():
-    print("Refreshing group membership for Docker access...")
-    run_command("newgrp docker")
+â„¹ IMPORTANT:
+â€¢ Logout & login ONCE to use Docker without sudo
+â€¢ Rollback available via rollback script
+""")
 
 if __name__ == "__main__":
-    install_docker()
-    install_docker_compose()
-    refresh_group_membership()
-    print("Docker and Docker Compose installation completed. You can now run Docker commands without sudo.")
+    main()
